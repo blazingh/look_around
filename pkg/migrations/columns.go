@@ -15,6 +15,81 @@ type Column struct {
 	ColumnDefault   *string `json:"column_default,omitempty"`
 }
 
+func ColumnExists(tableName string, columnName string) bool {
+	if !TableExists(tableName) {
+		return false
+	}
+	query := `
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_name = $1 AND column_name = $2
+    ) AS column_exists;`
+
+	var columnExists bool
+	err := connection.QueryRow(context.Background(), query, tableName, columnName).Scan(&columnExists)
+	if err != nil {
+		return false
+	}
+	return columnExists
+}
+
+func CreateColumn(tableName string, column Column) error {
+	tx, err := connection.Begin(context.Background())
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(context.Background())
+
+	if !ColumnExists(tableName, column.ColumnName) {
+		return fmt.Errorf("Column %s does not exist", column.ColumnName)
+	}
+
+	query := `
+    ALTER TABLE $1
+    ADD COLUMN $2;`
+
+	_, err = tx.Exec(context.Background(), query, tableName, column.ColumnName)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit(context.Background())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func DropColumn(tableName string, columnName string) error {
+	tx, err := connection.Begin(context.Background())
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(context.Background())
+
+	if !ColumnExists(tableName, columnName) {
+		return fmt.Errorf("Column %s does not exist", columnName)
+	}
+
+	query := `
+    ALTER TABLE $1
+    DROP COLUMN $2;`
+
+	_, err = tx.Exec(context.Background(), query, tableName, columnName)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit(context.Background())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func GetColumns(tableName string) ([]Column, error) {
 	tx, err := connection.Begin(context.Background())
 	if err != nil {
@@ -43,4 +118,8 @@ func GetColumns(tableName string) ([]Column, error) {
 	}
 
 	return columns, nil
+}
+
+func AlterColumn() {
+	// TODO
 }

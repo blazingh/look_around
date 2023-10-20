@@ -12,12 +12,6 @@ type Table struct {
 }
 
 func TableExists(tableName string) bool {
-	tx, err := connection.Begin(context.Background())
-	if err != nil {
-		return false
-	}
-	defer tx.Rollback(context.Background())
-
 	query := `
     SELECT EXISTS (
       SELECT 1
@@ -26,7 +20,7 @@ func TableExists(tableName string) bool {
     ) AS table_exists;`
 
 	var tableExists bool
-	err = tx.QueryRow(context.Background(), query, tableName).Scan(&tableExists)
+	err := connection.QueryRow(context.Background(), query, tableName).Scan(&tableExists)
 	if err != nil {
 		return false
 	}
@@ -89,18 +83,12 @@ func DropTable(tableName string) error {
 }
 
 func GetTables() ([]Table, error) {
-	tx, err := connection.Begin(context.Background())
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback(context.Background())
-
 	query := `
     SELECT table_name
     FROM information_schema.tables
     WHERE table_schema = 'public';`
 
-	rows, _ := tx.Query(context.Background(), query)
+	rows, _ := connection.Query(context.Background(), query)
 	tables, err := pgx.CollectRows(rows, pgx.RowToStructByPos[Table])
 
 	if err != nil {
