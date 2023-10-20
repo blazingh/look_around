@@ -18,4 +18,15 @@ func main() {
 		fmt.Println("Table created")
 	}
 
+	tables, err := migrations.GetTables()
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(tables)
+
+	columns, err := migrations.GetColumns("users")
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(columns[0])
 }
