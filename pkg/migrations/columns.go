@@ -15,10 +15,7 @@ type Column struct {
 	ColumnDefault   *string `json:"column_default,omitempty"`
 }
 
-func ColumnExists(tableName string, columnName string) bool {
-	if !TableExists(tableName) {
-		return false
-	}
+func columnExists(tableName string, columnName string) bool {
 	query := `
     SELECT EXISTS (
       SELECT 1
@@ -35,13 +32,17 @@ func ColumnExists(tableName string, columnName string) bool {
 }
 
 func CreateColumn(tableName string, column Column) error {
+	if !CheckConnection() {
+		return fmt.Errorf("Create connection first")
+	}
+
 	tx, err := connection.Begin(context.Background())
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(context.Background())
 
-	if !ColumnExists(tableName, column.ColumnName) {
+	if !columnExists(tableName, column.ColumnName) {
 		return fmt.Errorf("Column %s does not exist", column.ColumnName)
 	}
 
@@ -63,13 +64,17 @@ func CreateColumn(tableName string, column Column) error {
 }
 
 func DropColumn(tableName string, columnName string) error {
+	if !CheckConnection() {
+		return fmt.Errorf("Create connection first")
+	}
+
 	tx, err := connection.Begin(context.Background())
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(context.Background())
 
-	if !ColumnExists(tableName, columnName) {
+	if !columnExists(tableName, columnName) {
 		return fmt.Errorf("Column %s does not exist", columnName)
 	}
 
@@ -91,13 +96,11 @@ func DropColumn(tableName string, columnName string) error {
 }
 
 func GetColumns(tableName string) ([]Column, error) {
-	tx, err := connection.Begin(context.Background())
-	if err != nil {
-		return nil, err
+	if !CheckConnection() {
+		return nil, fmt.Errorf("Create connection first")
 	}
-	defer tx.Rollback(context.Background())
 
-	if !TableExists(tableName) {
+	if !tableExists(tableName) {
 		return nil, fmt.Errorf("Table %s does not exist", tableName)
 	}
 
@@ -111,7 +114,7 @@ func GetColumns(tableName string) ([]Column, error) {
   FROM INFORMATION_SCHEMA.COLUMNS
   WHERE TABLE_NAME = $1 ;`
 
-	rows, _ := tx.Query(context.Background(), query, tableName)
+	rows, _ := connection.Query(context.Background(), query, tableName)
 	columns, err := pgx.CollectRows(rows, pgx.RowToStructByPos[Column])
 	if err != nil {
 		return nil, err

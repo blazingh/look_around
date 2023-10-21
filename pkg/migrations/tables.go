@@ -11,7 +11,7 @@ type Table struct {
 	TableName string `json:"table_name"`
 }
 
-func TableExists(tableName string) bool {
+func tableExists(tableName string) bool {
 	query := `
     SELECT EXISTS (
       SELECT 1
@@ -28,13 +28,17 @@ func TableExists(tableName string) bool {
 }
 
 func CreateTable(tableName string) error {
+	if !CheckConnection() {
+		return fmt.Errorf("Create connection first")
+	}
+
 	tx, err := connection.Begin(context.Background())
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(context.Background())
 
-	if TableExists(tableName) {
+	if tableExists(tableName) {
 		return fmt.Errorf("Table %s already exists", tableName)
 	}
 
@@ -57,13 +61,16 @@ func CreateTable(tableName string) error {
 }
 
 func DropTable(tableName string) error {
+	if !CheckConnection() {
+		return fmt.Errorf("Create connection first")
+	}
 	tx, err := connection.Begin(context.Background())
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(context.Background())
 
-	if !TableExists(tableName) {
+	if !tableExists(tableName) {
 		return fmt.Errorf("Table %s does not exist", tableName)
 	}
 
@@ -83,6 +90,10 @@ func DropTable(tableName string) error {
 }
 
 func GetTables() ([]Table, error) {
+	if !CheckConnection() {
+		return nil, fmt.Errorf("Create connection first")
+	}
+
 	query := `
     SELECT table_name
     FROM information_schema.tables
